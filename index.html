@@ -1,0 +1,2032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task Manager</title>
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<script>tailwind.config={theme:{extend:{colors:{primary:'#4F46E5',secondary:'#10B981'},borderRadius:{'none':'0px','sm':'4px',DEFAULT:'8px','md':'12px','lg':'16px','xl':'20px','2xl':'24px','3xl':'32px','full':'9999px','button':'8px'}}}}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.min.css">
+<style>
+:where([class^="ri-"])::before { content: "\f3c2"; }
+body {
+font-family: 'Inter', sans-serif;
+}
+.animate-fade-in {
+animation: fadeIn 0.2s ease-in forwards;
+}
+.animate-fade-out {
+animation: fadeOut 0.2s ease-out forwards;
+}
+@keyframes fadeIn {
+from {
+opacity: 0;
+transform: translateY(10px);
+}
+to {
+opacity: 1;
+transform: translateY(0);
+}
+}
+@keyframes fadeOut {
+from {
+opacity: 1;
+transform: translateY(0);
+}
+to {
+opacity: 0;
+transform: translateY(10px);
+}
+}
+.task-list {
+height: calc(100vh - 200px);
+overflow-y: auto;
+}
+.task-card.dragging {
+opacity: 0.7;
+transform: scale(1.02);
+box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+.drag-indicator {
+height: 2px;
+background-color: #4F46E5;
+margin: 8px 0;
+display: none;
+}
+.category-chip {
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+}
+input[type="checkbox"] {
+accent-color: #4F46E5;
+}
+</style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+<!-- Splash Screen -->
+<div id="splash-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-primary">
+<div class="text-white text-4xl font-['Pacifico']">MN</div>
+<div class="mt-4 text-white text-xl">Task Manager</div>
+<div class="mt-8">
+<div class="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+</div>
+</div>
+<!-- App Container -->
+<div id="app-container" class="hidden max-w-md mx-auto bg-white min-h-screen relative">
+<!-- Top Navigation -->
+<nav class="bg-primary text-white py-4 px-4 flex items-center justify-between fixed w-full top-0 z-10">
+<div class="flex items-center">
+<button id="back-btn" class="w-8 h-8 flex items-center justify-center mr-2 hidden">
+<i class="ri-arrow-left-line ri-lg"></i>
+</button>
+<div class="text-xl font-['Pacifico']">MN</div>
+<h1 class="ml-2 text-lg font-medium">Task Manager</h1>
+</div>
+<div class="flex items-center space-x-3">
+<button id="export-btn" class="w-8 h-8 flex items-center justify-center">
+<i class="ri-download-line ri-lg"></i>
+</button>
+<button id="theme-toggle" class="w-8 h-8 flex items-center justify-center">
+<i class="ri-sun-line ri-lg"></i>
+</button>
+</div>
+</nav>
+<!-- Category Filter -->
+<div class="fixed top-[60px] w-full bg-white z-10 border-b border-gray-100 overflow-x-auto">
+<div class="flex py-3 px-4 space-x-2" id="category-filter">
+<button data-category="all" class="category-chip bg-primary text-white px-4 py-1 rounded-full text-sm font-medium transition-colors duration-200">
+All
+</button>
+<button data-category="work" class="category-chip bg-blue-100 text-blue-700 hover:bg-blue-200 px-4 py-1 rounded-full text-sm font-medium transition-colors duration-200">
+Work
+</button>
+<button data-category="personal" class="category-chip bg-green-100 text-green-700 hover:bg-green-200 px-4 py-1 rounded-full text-sm font-medium transition-colors duration-200">
+Personal
+</button>
+<button data-category="shopping" class="category-chip bg-orange-100 text-orange-700 hover:bg-orange-200 px-4 py-1 rounded-full text-sm font-medium transition-colors duration-200">
+Shopping
+</button>
+<button data-category="health" class="category-chip bg-red-100 text-red-700 hover:bg-red-200 px-4 py-1 rounded-full text-sm font-medium transition-colors duration-200">
+Health
+</button>
+<button data-category="others" class="category-chip bg-gray-100 text-gray-700 hover:bg-gray-200 px-4 py-1 rounded-full text-sm font-medium transition-colors duration-200">
+Others
+</button>
+<button id="add-category-btn" class="bg-gray-100 text-gray-700 hover:bg-gray-200 w-8 h-8 rounded-full flex items-center justify-center transition-colors duration-200">
+<i class="ri-add-line"></i>
+</button>
+</div>
+</div>
+<!-- Main Content -->
+<main class="pt-[120px] pb-20 px-4">
+<!-- Task List -->
+<div class="task-list">
+<!-- Task Card 1 -->
+<div class="task-card bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-3">
+<div class="flex items-center justify-between mb-2">
+<div class="flex items-center">
+<div class="w-6 h-6 flex items-center justify-center cursor-pointer">
+<i class="ri-drag-move-line text-gray-400"></i>
+</div>
+<span class="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full ml-2">Work</span>
+</div>
+<div class="flex items-center space-x-2">
+<span class="text-xs text-gray-500">Due: Jun 6</span>
+<div class="w-6 h-6 flex items-center justify-center cursor-pointer">
+<i class="ri-more-2-fill text-gray-500"></i>
+</div>
+</div>
+</div>
+<div class="flex items-start ml-6">
+<input type="checkbox" class="mt-1 mr-3">
+<div>
+<h3 class="font-medium">Prepare quarterly report</h3>
+<p class="text-sm text-gray-600 mt-1">Gather all sales data and create presentation for the team meeting</p>
+<div class="flex items-center mt-2">
+<span class="bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5 rounded">High Priority</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Task Card 2 -->
+<div class="task-card bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-3">
+<div class="flex items-center justify-between mb-2">
+<div class="flex items-center">
+<div class="w-6 h-6 flex items-center justify-center cursor-pointer">
+<i class="ri-drag-move-line text-gray-400"></i>
+</div>
+<span class="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full ml-2">Personal</span>
+</div>
+<div class="flex items-center space-x-2">
+<span class="text-xs text-gray-500">Due: Jun 8</span>
+<div class="w-6 h-6 flex items-center justify-center cursor-pointer">
+<i class="ri-more-2-fill text-gray-500"></i>
+</div>
+</div>
+</div>
+<div class="flex items-start ml-6">
+<input type="checkbox" class="mt-1 mr-3">
+<div>
+<h3 class="font-medium">Schedule dentist appointment</h3>
+<p class="text-sm text-gray-600 mt-1">Call Dr. Anderson's office to book annual checkup</p>
+<div class="flex items-center mt-2">
+<span class="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded">Medium Priority</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Task Card 3 -->
+<div class="task-card bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-3">
+<div class="flex items-center justify-between mb-2">
+<div class="flex items-center">
+<div class="w-6 h-6 flex items-center justify-center cursor-pointer">
+<i class="ri-drag-move-line text-gray-400"></i>
+</div>
+<span class="bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-full ml-2">Shopping</span>
+</div>
+<div class="flex items-center space-x-2">
+<span class="text-xs text-gray-500">Today</span>
+<div class="w-6 h-6 flex items-center justify-center cursor-pointer">
+<i class="ri-more-2-fill text-gray-500"></i>
+</div>
+</div>
+</div>
+<div class="flex items-start ml-6">
+<input type="checkbox" class="mt-1 mr-3" checked>
+<div>
+<h3 class="font-medium line-through text-gray-500">Buy groceries</h3>
+<p class="text-sm text-gray-400 mt-1 line-through">Milk, eggs, bread, fruits, and vegetables</p>
+<div class="flex items-center mt-2">
+<span class="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded">Low Priority</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Task Card 4 -->
+<div class="task-card bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-3">
+<div class="flex items-center justify-between mb-2">
+<div class="flex items-center">
+<div class="w-6 h-6 flex items-center justify-center cursor-pointer">
+<i class="ri-drag-move-line text-gray-400"></i>
+</div>
+<span class="bg-red-100 text-red-700 text-xs px-2 py-1 rounded-full ml-2">Health</span>
+</div>
+<div class="flex items-center space-x-2">
+<span class="text-xs text-gray-500">Jun 10</span>
+<div class="w-6 h-6 flex items-center justify-center cursor-pointer">
+<i class="ri-more-2-fill text-gray-500"></i>
+</div>
+</div>
+</div>
+<div class="flex items-start ml-6">
+<input type="checkbox" class="mt-1 mr-3">
+<div>
+<h3 class="font-medium">Morning workout routine</h3>
+<p class="text-sm text-gray-600 mt-1">30 minutes cardio and 15 minutes strength training</p>
+<div class="flex items-center mt-2">
+<span class="bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5 rounded">High Priority</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Task Card 5 -->
+<div class="task-card bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-3">
+<div class="flex items-center justify-between mb-2">
+<div class="flex items-center">
+<div class="w-6 h-6 flex items-center justify-center cursor-pointer">
+<i class="ri-drag-move-line text-gray-400"></i>
+</div>
+<span class="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full ml-2">Work</span>
+</div>
+<div class="flex items-center space-x-2">
+<span class="text-xs text-gray-500">Jun 15</span>
+<div class="w-6 h-6 flex items-center justify-center cursor-pointer">
+<i class="ri-more-2-fill text-gray-500"></i>
+</div>
+</div>
+</div>
+<div class="flex items-start ml-6">
+<input type="checkbox" class="mt-1 mr-3">
+<div>
+<h3 class="font-medium">Client meeting with Acme Corp</h3>
+<p class="text-sm text-gray-600 mt-1">Discuss project timeline and deliverables</p>
+<div class="flex items-center mt-2">
+<span class="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded">Medium Priority</span>
+<div class="ml-2 bg-gray-100 h-2 w-24 rounded-full">
+<div class="bg-primary h-2 rounded-full w-3/4"></div>
+</div>
+<span class="ml-2 text-xs text-gray-500">75%</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Add Task FAB -->
+<button id="add-task-btn" class="fixed right-4 bottom-20 w-14 h-14 bg-primary text-white rounded-full shadow-lg flex items-center justify-center cursor-pointer !rounded-button">
+<i class="ri-add-fill ri-xl"></i>
+</button>
+<!-- Bottom Navigation -->
+<nav class="fixed bottom-0 w-full bg-white border-t border-gray-200 flex justify-around py-2">
+<button class="flex flex-col items-center justify-center w-1/4 pt-1 pb-1 text-primary">
+<div class="w-6 h-6 flex items-center justify-center">
+<i class="ri-home-5-fill ri-lg"></i>
+</div>
+<span class="text-xs mt-1">Tasks</span>
+</button>
+<button id="categories-tab" class="flex flex-col items-center justify-center w-1/4 pt-1 pb-1 text-gray-500">
+<div class="w-6 h-6 flex items-center justify-center">
+<i class="ri-folder-line ri-lg"></i>
+</div>
+<span class="text-xs mt-1">Categories</span>
+</button>
+<button class="flex flex-col items-center justify-center w-1/4 pt-1 pb-1 text-gray-500">
+<div class="w-6 h-6 flex items-center justify-center">
+<i class="ri-download-line ri-lg"></i>
+</div>
+<span class="text-xs mt-1">Export</span>
+</button>
+<button id="settings-tab" class="flex flex-col items-center justify-center w-1/4 pt-1 pb-1 text-gray-500">
+<div class="w-6 h-6 flex items-center justify-center">
+<i class="ri-settings-line ri-lg"></i>
+</div>
+<span class="text-xs mt-1">Settings</span>
+</button>
+</nav>
+</div>
+<!-- Categories View -->
+<div id="categories-view" class="fixed inset-0 bg-white z-40 hidden">
+<div class="pt-[60px] pb-20 px-4">
+<div class="flex items-center justify-between mb-6">
+    <a href="./index.html" >
+<i class="ri-arrow-left-line text-blue-600"></i>
+    </a>
+<h2 class="text-xl font-semibold">Categories</h2>
+<button id="add-category-button" class="w-8 h-8 flex items-center justify-center bg-primary text-white rounded-full">
+<i class="ri-add-line"></i>
+</button>
+</div>
+<div class="grid grid-cols-1 gap-4">
+<!-- Work Category -->
+<div class="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center">
+<div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+<i class="ri-briefcase-line text-blue-600"></i>
+</div>
+<div class="ml-3">
+<h3 class="font-medium">Work</h3>
+<p class="text-sm text-gray-500">12 tasks</p>
+</div>
+</div>
+<button class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600">
+<i class="ri-more-2-fill"></i>
+</button>
+</div>
+<div class="mt-3 h-1 bg-gray-100 rounded-full overflow-hidden">
+<div class="h-full bg-blue-600 rounded-full" style="width: 65%"></div>
+</div>
+</div>
+<!-- Personal Category -->
+<div class="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center">
+<div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+<i class="ri-user-line text-green-600"></i>
+</div>
+<div class="ml-3">
+<h3 class="font-medium">Personal</h3>
+<p class="text-sm text-gray-500">8 tasks</p>
+</div>
+</div>
+<button class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600">
+<i class="ri-more-2-fill"></i>
+</button>
+</div>
+<div class="mt-3 h-1 bg-gray-100 rounded-full overflow-hidden">
+<div class="h-full bg-green-600 rounded-full" style="width: 45%"></div>
+</div>
+</div>
+<!-- Shopping Category -->
+<div class="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center">
+<div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+<i class="ri-shopping-bag-line text-orange-600"></i>
+</div>
+<div class="ml-3">
+<h3 class="font-medium">Shopping</h3>
+<p class="text-sm text-gray-500">5 tasks</p>
+</div>
+</div>
+<button class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600">
+<i class="ri-more-2-fill"></i>
+</button>
+</div>
+<div class="mt-3 h-1 bg-gray-100 rounded-full overflow-hidden">
+<div class="h-full bg-orange-600 rounded-full" style="width: 30%"></div>
+</div>
+</div>
+<!-- Health Category -->
+<div class="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center">
+<div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+<i class="ri-heart-line text-red-600"></i>
+</div>
+<div class="ml-3">
+<h3 class="font-medium">Health</h3>
+<p class="text-sm text-gray-500">3 tasks</p>
+</div>
+</div>
+<button class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600">
+<i class="ri-more-2-fill"></i>
+</button>
+</div>
+<div class="mt-3 h-1 bg-gray-100 rounded-full overflow-hidden">
+<div class="h-full bg-red-600 rounded-full" style="width: 20%"></div>
+</div>
+</div>
+<!-- Others Category -->
+<div class="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center">
+<div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+<i class="ri-folder-line text-gray-600"></i>
+</div>
+<div class="ml-3">
+<h3 class="font-medium">Others</h3>
+<p class="text-sm text-gray-500">2 tasks</p>
+</div>
+</div>
+<button class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600">
+<i class="ri-more-2-fill"></i>
+</button>
+</div>
+<div class="mt-3 h-1 bg-gray-100 rounded-full overflow-hidden">
+<div class="h-full bg-gray-600 rounded-full" style="width: 15%"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Add Category Modal -->
+<div id="add-category-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+<div class="bg-white rounded-lg w-[90%] max-w-md">
+<div class="p-4 border-b border-gray-200 flex justify-between items-center">
+<h2 class="text-lg font-medium">Add New Category</h2>
+<button id="close-category-modal" class="w-8 h-8 flex items-center justify-center">
+<i class="ri-close-line ri-lg"></i>
+</button>
+</div>
+<form id="add-category-form" class="p-4">
+<div class="mb-4">
+<label class="block text-sm font-medium text-gray-700 mb-1">Category Name</label>
+<input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Enter category name">
+</div>
+<div class="mb-4">
+<label class="block text-sm font-medium text-gray-700 mb-1">Icon</label>
+<div class="grid grid-cols-6 gap-2">
+<button type="button" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+<i class="ri-briefcase-line"></i>
+</button>
+<button type="button" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+<i class="ri-home-line"></i>
+</button>
+<button type="button" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+<i class="ri-book-line"></i>
+</button>
+<button type="button" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+<i class="ri-heart-line"></i>
+</button>
+<button type="button" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+<i class="ri-shopping-bag-line"></i>
+</button>
+<button type="button" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+<i class="ri-more-line"></i>
+</button>
+</div>
+</div>
+<div class="mb-4">
+<label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
+<div class="grid grid-cols-6 gap-2">
+<button type="button" class="w-10 h-10 rounded-full bg-blue-500"></button>
+<button type="button" class="w-10 h-10 rounded-full bg-green-500"></button>
+<button type="button" class="w-10 h-10 rounded-full bg-yellow-500"></button>
+<button type="button" class="w-10 h-10 rounded-full bg-red-500"></button>
+<button type="button" class="w-10 h-10 rounded-full bg-purple-500"></button>
+<button type="button" class="w-10 h-10 rounded-full bg-gray-500"></button>
+</div>
+</div>
+<div class="flex justify-end pt-2">
+<button type="button" id="cancel-add-category" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md mr-2 !rounded-button">Cancel</button>
+<button type="submit" class="px-4 py-2 bg-primary text-white rounded-md !rounded-button">Add Category</button>
+</div>
+</form>
+</div>
+</div>
+<!-- Edit Task Modal -->
+<div id="edit-task-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+<div class="bg-white rounded-lg w-[90%] max-w-md max-h-[90vh] overflow-y-auto">
+<div class="p-4 border-b border-gray-200 flex justify-between items-center">
+<h2 class="text-lg font-medium">Edit Task</h2>
+<button id="close-edit-modal" class="w-8 h-8 flex items-center justify-center cursor-pointer">
+<i class="ri-close-line ri-lg"></i>
+</button>
+</div>
+<form id="edit-task-form" class="p-4">
+<input type="hidden" id="edit-task-id">
+<div class="mb-4">
+<label for="edit-task-title" class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+<input type="text" id="edit-task-title" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Enter task title">
+</div>
+<div class="mb-4">
+<label for="edit-task-description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+<textarea id="edit-task-description" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Enter task description"></textarea>
+</div>
+<div class="mb-4">
+<label for="edit-task-category" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+<div class="relative">
+<select id="edit-task-category" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary appearance-none">
+<option value="work">Work</option>
+<option value="personal">Personal</option>
+<option value="shopping">Shopping</option>
+<option value="health">Health</option>
+<option value="others">Others</option>
+</select>
+<div class="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+<i class="ri-arrow-down-s-line"></i>
+</div>
+</div>
+</div>
+<div class="mb-4">
+<label for="edit-task-due-date" class="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+<input type="date" id="edit-task-due-date" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
+</div>
+<div class="mb-4">
+<label for="edit-task-priority" class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+<div class="relative">
+<select id="edit-task-priority" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary appearance-none">
+<option value="low">Low</option>
+<option value="medium">Medium</option>
+<option value="high">High</option>
+</select>
+<div class="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+<i class="ri-arrow-down-s-line"></i>
+</div>
+</div>
+</div>
+<div class="flex justify-end pt-2">
+<button type="button" id="cancel-edit-task" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md mr-2 !rounded-button">Cancel</button>
+<button type="submit" class="px-4 py-2 bg-primary text-white rounded-md !rounded-button">Save Changes</button>
+</div>
+</form>
+</div>
+</div>
+<!-- Add Task Modal -->
+<div id="add-task-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+<div class="bg-white rounded-lg w-[90%] max-w-md max-h-[90vh] overflow-y-auto">
+<div class="p-4 border-b border-gray-200 flex justify-between items-center">
+<h2 class="text-lg font-medium">Add New Task</h2>
+<button id="close-add-modal" class="w-8 h-8 flex items-center justify-center cursor-pointer">
+<i class="ri-close-line ri-lg"></i>
+</button>
+</div>
+<form id="add-task-form" class="p-4">
+<div class="mb-4">
+<label for="task-title" class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+<input type="text" id="task-title" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Enter task title">
+</div>
+<div class="mb-4">
+<label for="task-description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+<textarea id="task-description" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Enter task description"></textarea>
+</div>
+<div class="mb-4">
+<label for="task-category" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+<div class="relative">
+<select id="task-category" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary appearance-none">
+<option value="work">Work</option>
+<option value="personal">Personal</option>
+<option value="shopping">Shopping</option>
+<option value="health">Health</option>
+<option value="others">Others</option>
+</select>
+<div class="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+<i class="ri-arrow-down-s-line"></i>
+</div>
+</div>
+</div>
+<div class="mb-4">
+<label for="task-due-date" class="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+<input type="date" id="task-due-date" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
+</div>
+<div class="mb-4">
+<label for="task-priority" class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+<div class="relative">
+<select id="task-priority" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary appearance-none">
+<option value="low">Low</option>
+<option value="medium">Medium</option>
+<option value="high">High</option>
+</select>
+<div class="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+<i class="ri-arrow-down-s-line"></i>
+</div>
+</div>
+</div>
+<div class="flex justify-end pt-2">
+<button type="button" id="cancel-add-task" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md mr-2 !rounded-button">Cancel</button>
+<button type="submit" class="px-4 py-2 bg-primary text-white rounded-md !rounded-button">Add Task</button>
+</div>
+</form>
+</div>
+</div>
+<!-- Task Options Modal -->
+<div id="task-options-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center hidden">
+<div class="bg-white rounded-t-lg w-full max-w-md">
+<div class="p-4">
+<div id="edit-task-btn" class="flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
+<div class="w-8 h-8 flex items-center justify-center text-blue-600">
+<i class="ri-edit-line ri-lg"></i>
+</div>
+<span class="ml-3">Edit Task</span>
+</div>
+<div id="mark-complete-btn" class="flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
+<div class="w-8 h-8 flex items-center justify-center text-green-600">
+<i class="ri-check-double-line ri-lg"></i>
+</div>
+<span class="ml-3">Mark as Complete</span>
+</div>
+<div id="set-reminder-btn" class="flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
+<div class="w-8 h-8 flex items-center justify-center text-yellow-600">
+<i class="ri-alarm-line ri-lg"></i>
+</div>
+<span class="ml-3">Set Reminder</span>
+</div>
+<div id="delete-task-btn" class="flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
+<div class="w-8 h-8 flex items-center justify-center text-red-600">
+<i class="ri-delete-bin-line ri-lg"></i>
+</div>
+<span class="ml-3">Delete Task</span>
+</div>
+</div>
+<div class="border-t border-gray-200 p-4">
+<button id="close-options-modal" class="w-full py-3 text-center text-gray-700 font-medium !rounded-button">Cancel</button>
+</div>
+</div>
+</div>
+<!-- Export Modal -->
+<div id="export-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+<div class="bg-white rounded-lg w-[90%] max-w-md max-h-[90vh] overflow-y-auto">
+<div class="p-4 border-b border-gray-200 flex justify-between items-center">
+<h2 class="text-lg font-medium">Export Tasks</h2>
+<button id="close-export-modal" class="w-8 h-8 flex items-center justify-center cursor-pointer">
+<i class="ri-close-line ri-lg"></i>
+</button>
+</div>
+<div class="p-4">
+<div class="mb-6">
+<label class="block text-sm font-medium text-gray-700 mb-2">Export Format</label>
+<div class="grid grid-cols-3 gap-3">
+<label class="flex flex-col items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-primary transition-colors">
+<input type="radio" name="export-format" value="pdf" checked class="hidden">
+<div class="w-8 h-8 flex items-center justify-center text-gray-500 mb-1">
+<i class="ri-file-pdf-line ri-lg"></i>
+</div>
+<span class="text-sm">PDF</span>
+<span class="text-xs text-gray-500">Formatted report</span>
+</label>
+<label class="flex flex-col items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-primary transition-colors">
+<input type="radio" name="export-format" value="csv" class="hidden">
+<div class="w-8 h-8 flex items-center justify-center text-gray-500 mb-1">
+<i class="ri-file-excel-line ri-lg"></i>
+</div>
+<span class="text-sm">CSV</span>
+<span class="text-xs text-gray-500">Spreadsheet</span>
+</label>
+<label class="flex flex-col items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-primary transition-colors">
+<input type="radio" name="export-format" value="json" class="hidden">
+<div class="w-8 h-8 flex items-center justify-center text-gray-500 mb-1">
+<i class="ri-file-code-line ri-lg"></i>
+</div>
+<span class="text-sm">JSON</span>
+<span class="text-xs text-gray-500">Raw data</span>
+</label>
+</div>
+</div>
+<div class="mb-6">
+<label class="block text-sm font-medium text-gray-700 mb-2">Task Status</label>
+<div class="flex space-x-3">
+<label class="flex items-center">
+<input type="checkbox" checked class="mr-2">
+<span class="text-sm">Pending</span>
+</label>
+<label class="flex items-center">
+<input type="checkbox" checked class="mr-2">
+<span class="text-sm">Completed</span>
+</label>
+<label class="flex items-center">
+<input type="checkbox" checked class="mr-2">
+<span class="text-sm">Archived</span>
+</label>
+</div>
+</div>
+<div class="mb-6">
+<label class="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
+<div class="space-y-3">
+<div class="flex items-center space-x-3">
+<label class="flex items-center flex-1">
+<input type="radio" name="date-range" value="all" checked class="mr-2">
+<span class="text-sm">All Time</span>
+</label>
+<label class="flex items-center flex-1">
+<input type="radio" name="date-range" value="custom" class="mr-2">
+<span class="text-sm">Custom Range</span>
+</label>
+</div>
+<div id="custom-date-range" class="grid grid-cols-2 gap-3 hidden">
+<div>
+<label class="text-xs text-gray-500">From</label>
+<input type="date" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
+</div>
+<div>
+<label class="text-xs text-gray-500">To</label>
+<input type="date" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
+</div>
+</div>
+</div>
+</div>
+<div class="mb-6">
+<label class="block text-sm font-medium text-gray-700 mb-2">Categories</label>
+<div class="grid grid-cols-2 gap-2">
+<label class="flex items-center">
+<input type="checkbox" checked class="mr-2">
+<div class="flex items-center">
+<div class="w-4 h-4 rounded-full bg-blue-100 flex items-center justify-center mr-2">
+<i class="ri-briefcase-line text-blue-600 text-xs"></i>
+</div>
+<span class="text-sm">Work</span>
+</div>
+</label>
+<label class="flex items-center">
+<input type="checkbox" checked class="mr-2">
+<div class="flex items-center">
+<div class="w-4 h-4 rounded-full bg-green-100 flex items-center justify-center mr-2">
+<i class="ri-user-line text-green-600 text-xs"></i>
+</div>
+<span class="text-sm">Personal</span>
+</div>
+</label>
+<label class="flex items-center">
+<input type="checkbox" checked class="mr-2">
+<div class="flex items-center">
+<div class="w-4 h-4 rounded-full bg-orange-100 flex items-center justify-center mr-2">
+<i class="ri-shopping-bag-line text-orange-600 text-xs"></i>
+</div>
+<span class="text-sm">Shopping</span>
+</div>
+</label>
+<label class="flex items-center">
+<input type="checkbox" checked class="mr-2">
+<div class="flex items-center">
+<div class="w-4 h-4 rounded-full bg-red-100 flex items-center justify-center mr-2">
+<i class="ri-heart-line text-red-600 text-xs"></i>
+</div>
+<span class="text-sm">Health</span>
+</div>
+</label>
+<label class="flex items-center">
+<input type="checkbox" checked class="mr-2">
+<div class="flex items-center">
+<div class="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center mr-2">
+<i class="ri-folder-line text-gray-600 text-xs"></i>
+</div>
+<span class="text-sm">Others</span>
+</div>
+</label>
+</div>
+</div>
+<div class="mb-6">
+<label class="block text-sm font-medium text-gray-700 mb-2">Additional Options</label>
+<div class="space-y-3">
+<label class="flex items-center">
+<input type="checkbox" checked class="mr-2">
+<span class="text-sm">Include task descriptions</span>
+</label>
+<label class="flex items-center">
+<input type="checkbox" checked class="mr-2">
+<span class="text-sm">Include completion dates</span>
+</label>
+<label class="flex items-center">
+<input type="checkbox" checked class="mr-2">
+<span class="text-sm">Include task priorities</span>
+</label>
+<label class="flex items-center">
+<input type="checkbox" class="mr-2">
+<span class="text-sm">Include progress tracking</span>
+</label>
+</div>
+</div>
+<div class="flex justify-end pt-2">
+<button id="cancel-export" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md mr-2 !rounded-button">Cancel</button>
+<button id="confirm-export" class="px-4 py-2 bg-primary text-white rounded-md !rounded-button flex items-center">
+<i class="ri-download-line mr-1"></i>
+Export
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Settings View -->
+<div id="settings-view" class="fixed inset-0 bg-white z-40 hidden overflow-y-auto">
+<div class="pt-[60px] pb-20 px-4">
+    <a href="./index.html">
+        <i class="ri-arrow-left-line text-blue-600"></i>
+    </a>
+<h2 class="text-xl font-semibold mb-6">Settings</h2>
+<div class="space-y-6">
+<!-- Appearance -->
+<div class="space-y-4">
+<h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Appearance</h3>
+<div class="bg-white rounded-lg shadow-sm border border-gray-100 divide-y divide-gray-100">
+<div class="flex items-center justify-between p-4">
+<div class="flex items-center">
+<div class="w-8 h-8 flex items-center justify-center text-gray-500">
+<i class="ri-contrast-2-line ri-lg"></i>
+</div>
+<span class="ml-3">Dark Mode</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input type="checkbox" id="dark-mode-toggle" class="sr-only peer">
+<div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<div class="flex items-center justify-between p-4">
+<div class="flex items-center">
+<div class="w-8 h-8 flex items-center justify-center text-gray-500">
+<i class="ri-font-size-2 ri-lg"></i>
+</div>
+<span class="ml-3">Text Size</span>
+</div>
+<div class="flex items-center space-x-2">
+<button id="text-size-small" class="w-8 h-8 flex items-center justify-center text-sm bg-gray-100 hover:bg-gray-200 rounded-full transition-colors">A</button>
+<button id="text-size-medium" class="w-8 h-8 flex items-center justify-center text-base bg-primary text-white rounded-full">A</button>
+<button id="text-size-large" class="w-8 h-8 flex items-center justify-center text-lg bg-gray-100 hover:bg-gray-200 rounded-full transition-colors">A</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Notifications -->
+<div class="space-y-4">
+<h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Notifications</h3>
+<div class="bg-white rounded-lg shadow-sm border border-gray-100 divide-y divide-gray-100">
+<div class="flex items-center justify-between p-4">
+<div class="flex items-center">
+<div class="w-8 h-8 flex items-center justify-center text-gray-500">
+<i class="ri-notification-4-line ri-lg"></i>
+</div>
+<div class="ml-3">
+<span class="block">Push Notifications</span>
+<span class="text-sm text-gray-500">Get notified about task updates</span>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input type="checkbox" id="push-notifications-toggle" checked class="sr-only peer">
+<div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<div id="push-notification-settings" class="p-4 bg-gray-50">
+<div class="space-y-3">
+<label class="flex items-center">
+<input type="checkbox" id="notify-due-date" checked class="mr-3">
+<span class="text-sm">Due date reminders</span>
+</label>
+<label class="flex items-center">
+<input type="checkbox" id="notify-task-updates" checked class="mr-3">
+<span class="text-sm">Task updates & changes</span>
+</label>
+<label class="flex items-center">
+<input type="checkbox" id="notify-comments" checked class="mr-3">
+<span class="text-sm">Comments & mentions</span>
+</label>
+</div>
+<div class="mt-4">
+<label class="block text-sm font-medium text-gray-700 mb-2">Reminder Time</label>
+<select id="reminder-time" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm">
+<option value="0">At time of due date</option>
+<option value="15">15 minutes before</option>
+<option value="30">30 minutes before</option>
+<option value="60">1 hour before</option>
+<option value="1440">1 day before</option>
+</select>
+</div>
+</div>
+<div class="flex items-center justify-between p-4">
+<div class="flex items-center">
+<div class="w-8 h-8 flex items-center justify-center text-gray-500">
+<i class="ri-mail-line ri-lg"></i>
+</div>
+<div class="ml-3">
+<span class="block">Email Notifications</span>
+<span class="text-sm text-gray-500">Receive daily task summaries</span>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input type="checkbox" id="email-notifications-toggle" class="sr-only peer">
+<div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<div id="email-notification-settings" class="p-4 bg-gray-50 hidden">
+<div class="space-y-3">
+<label class="flex items-center">
+<input type="checkbox" id="email-daily-summary" checked class="mr-3">
+<span class="text-sm">Daily task summary</span>
+</label>
+<label class="flex items-center">
+<input type="checkbox" id="email-weekly-report" class="mr-3">
+<span class="text-sm">Weekly progress report</span>
+</label>
+<label class="flex items-center">
+<input type="checkbox" id="email-important-updates" checked class="mr-3">
+<span class="text-sm">Important task updates</span>
+</label>
+</div>
+<div class="mt-4">
+<label class="block text-sm font-medium text-gray-700 mb-2">Summary Delivery Time</label>
+<select id="summary-time" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm">
+<option value="9">9:00 AM</option>
+<option value="12">12:00 PM</option>
+<option value="17">5:00 PM</option>
+<option value="20">8:00 PM</option>
+</select>
+</div>
+</div>
+<div class="flex items-center justify-between p-4">
+<div class="flex items-center">
+<div class="w-8 h-8 flex items-center justify-center text-gray-500">
+<i class="ri-volume-up-line ri-lg"></i>
+</div>
+<div class="ml-3">
+<span class="block">Sound & Vibration</span>
+<span class="text-sm text-gray-500">Notification alert settings</span>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input type="checkbox" id="sound-toggle" checked class="sr-only peer">
+<div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<div id="sound-settings" class="p-4 bg-gray-50">
+<div class="space-y-3">
+<label class="flex items-center">
+<input type="checkbox" id="enable-sound" checked class="mr-3">
+<span class="text-sm">Notification sound</span>
+</label>
+<label class="flex items-center">
+<input type="checkbox" id="enable-vibration" checked class="mr-3">
+<span class="text-sm">Vibration</span>
+</label>
+</div>
+<div class="mt-4">
+<label class="block text-sm font-medium text-gray-700 mb-2">Sound Type</label>
+<select id="sound-type" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-sm">
+<option value="default">Default</option>
+<option value="bell">Bell</option>
+<option value="chime">Chime</option>
+<option value="melody">Melody</option>
+</select>
+</div>
+</div>
+</div>
+</div>
+<!-- Data Management -->
+<div class="space-y-4">
+<h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Data Management</h3>
+<div class="bg-white rounded-lg shadow-sm border border-gray-100 divide-y divide-gray-100">
+<button id="backup-data-btn" class="flex items-center justify-between w-full p-4 text-left">
+<div class="flex items-center">
+<div class="w-8 h-8 flex items-center justify-center text-gray-500">
+<i class="ri-download-cloud-line ri-lg"></i>
+</div>
+<div class="ml-3">
+<span class="block">Backup Data</span>
+<span class="text-sm text-gray-500">Last backup: Never</span>
+</div>
+</div>
+<i class="ri-arrow-right-s-line ri-lg text-gray-400"></i>
+</button>
+<div class="flex items-center justify-between w-full p-4">
+<div class="flex items-center">
+<div class="w-8 h-8 flex items-center justify-center text-gray-500">
+<i class="ri-upload-cloud-line ri-lg"></i>
+</div>
+<div class="ml-3">
+<span class="block">Auto Backup</span>
+<span class="text-sm text-gray-500">Backup data every day</span>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input type="checkbox" id="auto-backup-toggle" class="sr-only peer">
+<div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<button id="restore-data-btn" class="flex items-center justify-between w-full p-4 text-left">
+<div class="flex items-center">
+<div class="w-8 h-8 flex items-center justify-center text-gray-500">
+<i class="ri-history-line ri-lg"></i>
+</div>
+<div class="ml-3">
+<span class="block">Restore Data</span>
+<span class="text-sm text-gray-500">Restore from backup</span>
+</div>
+</div>
+<i class="ri-arrow-right-s-line ri-lg text-gray-400"></i>
+</button>
+<button id="clear-data-btn" class="flex items-center justify-between w-full p-4 text-left text-red-600">
+<div class="flex items-center">
+<div class="w-8 h-8 flex items-center justify-center">
+<i class="ri-delete-bin-line ri-lg"></i>
+</div>
+<div class="ml-3">
+<span class="block">Clear All Data</span>
+<span class="text-sm text-red-400">This action cannot be undone</span>
+</div>
+</div>
+<i class="ri-arrow-right-s-line ri-lg"></i>
+</button>
+</div>
+</div>
+<!-- About -->
+<div class="space-y-4">
+<h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">About</h3>
+<div class="bg-white rounded-lg shadow-sm border border-gray-100 divide-y divide-gray-100">
+<div class="p-4">
+<div class="flex items-center justify-between mb-2">
+<span class="text-sm text-gray-500">Version</span>
+<span class="text-sm">2.1.0</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-sm text-gray-500">Build</span>
+<span class="text-sm">2025.06.05</span>
+</div>
+</div>
+<a href="./privacy policy.html" class="flex items-center justify-between w-full p-4 text-left hover:bg-gray-50">
+<div class="flex items-center">
+<div class="w-8 h-8 flex items-center justify-center text-gray-500">
+<i class="ri-file-text-line ri-lg"></i>
+</div>
+<span class="ml-3">Privacy Policy</span>
+</div>
+<i class="ri-arrow-right-s-line ri-lg text-gray-400"></i>
+</a>
+<a href="./terms and service.html" class="flex items-center justify-between w-full p-4 text-left hover:bg-gray-50">
+<div class="flex items-center">
+<div class="w-8 h-8 flex items-center justify-center text-gray-500">
+<i class="ri-shield-line ri-lg"></i>
+</div>
+<span class="ml-3">Terms of Service</span>
+</div>
+<i class="ri-arrow-right-s-line ri-lg text-gray-400"></i>
+</a>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Toast Notification -->
+<div id="toast" class="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg opacity-0 transition-opacity duration-300 hidden">
+Task added successfully!
+</div>
+<!-- Reminder Modal -->
+<div id="reminder-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+<div class="bg-white rounded-lg w-[90%] max-w-md">
+<div class="p-4 border-b border-gray-200 flex justify-between items-center">
+<h3 class="text-lg font-medium">Set Reminder</h3>
+<button id="close-reminder-modal" class="w-8 h-8 flex items-center justify-center cursor-pointer">
+<i class="ri-close-line ri-lg"></i>
+</button>
+</div>
+<form id="reminder-form" class="p-4">
+<div class="mb-4">
+<label class="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
+<input type="datetime-local" id="reminder-datetime" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
+</div>
+<div class="mb-4">
+<label class="block text-sm font-medium text-gray-700 mb-1">Notification Method</label>
+<div class="space-y-2">
+<label class="flex items-center">
+<input type="checkbox" id="reminder-push" class="mr-2" checked>
+<span class="text-sm">Push Notification</span>
+</label>
+<label class="flex items-center">
+<input type="checkbox" id="reminder-email" class="mr-2">
+<span class="text-sm">Email Notification</span>
+</label>
+</div>
+</div>
+<div class="mb-4">
+<label class="block text-sm font-medium text-gray-700 mb-1">Repeat</label>
+<select id="reminder-frequency" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
+<option value="once">Once</option>
+<option value="daily">Daily</option>
+<option value="weekly">Weekly</option>
+</select>
+</div>
+<div class="flex justify-end pt-2">
+<button type="button" id="cancel-reminder" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md mr-2 !rounded-button">Cancel</button>
+<button type="submit" class="px-4 py-2 bg-primary text-white rounded-md !rounded-button flex items-center">
+<i class="ri-alarm-line mr-1"></i>
+Save Reminder
+</button>
+</div>
+</form>
+</div>
+</div>
+<!-- Confirm Modal -->
+<div id="confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+<div class="bg-white rounded-lg w-[90%] max-w-sm">
+<div class="p-4 border-b border-gray-200">
+<h3 class="text-lg font-medium" id="confirm-title">Confirm Action</h3>
+<p class="text-sm text-gray-500 mt-1" id="confirm-message">Are you sure you want to proceed?</p>
+</div>
+<div class="p-4 flex justify-end space-x-2">
+<button id="confirm-cancel" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md !rounded-button">Cancel</button>
+<button id="confirm-ok" class="px-4 py-2 bg-primary text-white rounded-md !rounded-button">Confirm</button>
+</div>
+</div>
+</div>
+<script id="splash-screen-script">
+document.addEventListener('DOMContentLoaded', function() {
+setTimeout(function() {
+document.getElementById('splash-screen').classList.add('opacity-0', 'transition-opacity', 'duration-500');
+setTimeout(function() {
+document.getElementById('splash-screen').classList.add('hidden');
+document.getElementById('app-container').classList.remove('hidden');
+}, 500);
+}, 2000);
+});
+</script>
+<script id="modal-handlers">
+document.addEventListener('DOMContentLoaded', function() {
+const categoriesTab = document.getElementById('categories-tab');
+const settingsTab = document.getElementById('settings-tab');
+const categoriesView = document.getElementById('categories-view');
+const settingsView = document.getElementById('settings-view');
+const addCategoryButton = document.getElementById('add-category-button');
+const addCategoryBtn = document.getElementById('add-category-btn');
+const addCategoryModal = document.getElementById('add-category-modal');
+const closeCategoryModal = document.getElementById('close-category-modal');
+const cancelAddCategory = document.getElementById('cancel-add-category');
+const addCategoryForm = document.getElementById('add-category-form');
+// Categories View Toggle
+categoriesTab.addEventListener('click', function() {
+document.querySelector('main').classList.add('hidden');
+document.getElementById('add-task-btn').classList.add('hidden');
+categoriesView.classList.remove('hidden');
+settingsView.classList.add('hidden');
+document.getElementById('back-btn').classList.remove('hidden');
+document.querySelectorAll('.bottom-navigation button').forEach(btn => {
+btn.classList.remove('text-primary');
+btn.classList.add('text-gray-500');
+});
+this.classList.remove('text-gray-500');
+this.classList.add('text-primary');
+});
+const homeTab = document.querySelector('nav.fixed.bottom-0 button:first-child');
+if (homeTab) {
+homeTab.addEventListener('click', function() {
+document.querySelector('main').classList.remove('hidden');
+document.getElementById('add-task-btn').classList.remove('hidden');
+categoriesView.classList.add('hidden');
+settingsView.classList.add('hidden');
+document.querySelectorAll('nav.fixed.bottom-0 button').forEach(btn => {
+btn.classList.remove('text-primary');
+btn.classList.add('text-gray-500');
+});
+this.classList.remove('text-gray-500');
+this.classList.add('text-primary');
+});
+}
+if (settingsTab) {
+settingsTab.addEventListener('click', function() {
+document.querySelector('main').classList.add('hidden');
+document.getElementById('add-task-btn').classList.add('hidden');
+categoriesView.classList.add('hidden');
+settingsView.classList.remove('hidden');
+document.getElementById('back-btn').classList.remove('hidden');
+document.querySelectorAll('nav.fixed.bottom-0 button').forEach(btn => {
+btn.classList.remove('text-primary');
+btn.classList.add('text-gray-500');
+});
+this.classList.remove('text-gray-500');
+this.classList.add('text-primary');
+});
+}
+const backBtn = document.getElementById('back-btn');
+if (backBtn) {
+backBtn.addEventListener('click', function() {
+document.querySelector('main').classList.remove('hidden');
+document.getElementById('add-task-btn').classList.remove('hidden');
+categoriesView.classList.add('hidden');
+settingsView.classList.add('hidden');
+this.classList.add('hidden');
+document.querySelectorAll('nav.fixed.bottom-0 button').forEach(btn => {
+btn.classList.remove('text-primary');
+btn.classList.add('text-gray-500');
+});
+document.querySelector('nav.fixed.bottom-0 button:first-child').classList.add('text-primary');
+});
+}
+// Add Category Modal
+function openAddCategoryModal() {
+addCategoryModal.classList.remove('hidden');
+}
+addCategoryButton.addEventListener('click', openAddCategoryModal);
+addCategoryBtn.addEventListener('click', openAddCategoryModal);
+closeCategoryModal.addEventListener('click', function() {
+addCategoryModal.classList.add('hidden');
+});
+cancelAddCategory.addEventListener('click', function() {
+addCategoryModal.classList.add('hidden');
+});
+// Category Icon Selection
+document.querySelectorAll('#add-category-form button[type="button"]').forEach(button => {
+button.addEventListener('click', function() {
+if (this.parentElement.classList.contains('grid-cols-6')) {
+this.parentElement.querySelectorAll('button').forEach(btn => {
+btn.classList.remove('ring-2', 'ring-primary');
+});
+this.classList.add('ring-2', 'ring-primary');
+}
+});
+});
+// Category Form Submission
+addCategoryForm.addEventListener('submit', function(e) {
+e.preventDefault();
+addCategoryModal.classList.add('hidden');
+const toast = document.getElementById('toast');
+toast.textContent = 'Category added successfully!';
+toast.classList.remove('hidden');
+toast.classList.add('opacity-100');
+setTimeout(function() {
+toast.classList.remove('opacity-100');
+toast.classList.add('opacity-0');
+setTimeout(function() {
+toast.classList.add('hidden');
+}, 300);
+}, 2000);
+});
+const addTaskBtn = document.getElementById('add-task-btn');
+const addTaskModal = document.getElementById('add-task-modal');
+const closeAddModal = document.getElementById('close-add-modal');
+const cancelAddTask = document.getElementById('cancel-add-task');
+const taskOptionsModal = document.getElementById('task-options-modal');
+const closeOptionsModal = document.getElementById('close-options-modal');
+const exportBtn = document.getElementById('export-btn');
+const exportModal = document.getElementById('export-modal');
+const closeExportModal = document.getElementById('close-export-modal');
+const cancelExport = document.getElementById('cancel-export');
+const confirmExport = document.getElementById('confirm-export');
+const toast = document.getElementById('toast');
+// Add Task Modal
+addTaskBtn.addEventListener('click', function() {
+addTaskModal.classList.remove('hidden');
+});
+closeAddModal.addEventListener('click', function() {
+addTaskModal.classList.add('hidden');
+});
+cancelAddTask.addEventListener('click', function() {
+addTaskModal.classList.add('hidden');
+});
+// Task Options Modal
+document.querySelectorAll('.ri-more-2-fill').forEach(function(el) {
+el.addEventListener('click', function(e) {
+e.stopPropagation();
+taskOptionsModal.classList.remove('hidden');
+});
+});
+closeOptionsModal.addEventListener('click', function() {
+taskOptionsModal.classList.add('hidden');
+});
+// Export Modal
+exportBtn.addEventListener('click', function() {
+exportModal.classList.remove('hidden');
+});
+closeExportModal.addEventListener('click', function() {
+exportModal.classList.add('hidden');
+});
+cancelExport.addEventListener('click', function() {
+exportModal.classList.add('hidden');
+});
+confirmExport.addEventListener('click', function() {
+exportModal.classList.add('hidden');
+showToast('Tasks exported successfully!');
+});
+// Form submission
+document.getElementById('add-task-form').addEventListener('submit', function(e) {
+e.preventDefault();
+addTaskModal.classList.add('hidden');
+showToast('Task added successfully!');
+});
+// Show toast notification
+function showToast(message) {
+toast.textContent = message;
+toast.classList.remove('hidden');
+toast.classList.add('opacity-100');
+setTimeout(function() {
+toast.classList.remove('opacity-100');
+toast.classList.add('opacity-0');
+setTimeout(function() {
+toast.classList.add('hidden');
+}, 300);
+}, 3000);
+}
+});
+</script>
+<script id="theme-toggle-script">
+document.addEventListener('DOMContentLoaded', function() {
+const themeToggle = document.getElementById('theme-toggle');
+const darkModeToggle = document.getElementById('dark-mode-toggle');
+const textSizeSmall = document.getElementById('text-size-small');
+const textSizeMedium = document.getElementById('text-size-medium');
+const textSizeLarge = document.getElementById('text-size-large');
+function setTextSize(size) {
+const root = document.documentElement;
+let baseSize;
+switch(size) {
+case 'small':
+baseSize = '14px';
+break;
+case 'medium':
+baseSize = '16px';
+break;
+case 'large':
+baseSize = '18px';
+break;
+default:
+baseSize = '16px';
+}
+root.style.fontSize = baseSize;
+localStorage.setItem('textSize', size);
+[textSizeSmall, textSizeMedium, textSizeLarge].forEach(btn => {
+btn.classList.remove('bg-primary', 'text-white');
+btn.classList.add('bg-gray-100');
+});
+const activeButton = {
+'small': textSizeSmall,
+'medium': textSizeMedium,
+'large': textSizeLarge
+}[size];
+if (activeButton) {
+activeButton.classList.remove('bg-gray-100');
+activeButton.classList.add('bg-primary', 'text-white');
+}
+const toast = document.getElementById('toast');
+toast.textContent = `Text size set to ${size}`;
+toast.classList.remove('hidden');
+toast.classList.add('opacity-100');
+setTimeout(() => {
+toast.classList.remove('opacity-100');
+toast.classList.add('opacity-0');
+setTimeout(() => toast.classList.add('hidden'), 300);
+}, 2000);
+}
+textSizeSmall.addEventListener('click', () => setTextSize('small'));
+textSizeMedium.addEventListener('click', () => setTextSize('medium'));
+textSizeLarge.addEventListener('click', () => setTextSize('large'));
+const savedTextSize = localStorage.getItem('textSize') || 'medium';
+setTextSize(savedTextSize);
+function setTheme(isDark) {
+if (isDark) {
+document.body.classList.add('bg-gray-900', 'text-gray-100');
+document.body.classList.remove('bg-gray-50', 'text-gray-800');
+document.querySelectorAll('.bg-white').forEach(el => {
+el.classList.remove('bg-white');
+el.classList.add('bg-gray-800');
+});
+document.querySelectorAll('.border-gray-100, .border-gray-200').forEach(el => {
+el.classList.remove('border-gray-100', 'border-gray-200');
+el.classList.add('border-gray-700');
+});
+document.querySelectorAll('.text-gray-600, .text-gray-700').forEach(el => {
+el.classList.remove('text-gray-600', 'text-gray-700');
+el.classList.add('text-gray-300');
+});
+themeToggle.innerHTML = '<i class="ri-moon-line ri-lg"></i>';
+darkModeToggle.checked = true;
+} else {
+document.body.classList.remove('bg-gray-900', 'text-gray-100');
+document.body.classList.add('bg-gray-50', 'text-gray-800');
+document.querySelectorAll('.bg-gray-800').forEach(el => {
+el.classList.remove('bg-gray-800');
+el.classList.add('bg-white');
+});
+document.querySelectorAll('.border-gray-700').forEach(el => {
+el.classList.remove('border-gray-700');
+el.classList.add('border-gray-200');
+});
+document.querySelectorAll('.text-gray-300').forEach(el => {
+el.classList.remove('text-gray-300');
+el.classList.add('text-gray-600');
+});
+themeToggle.innerHTML = '<i class="ri-sun-line ri-lg"></i>';
+darkModeToggle.checked = false;
+}
+}
+function showThemeToast(isDark) {
+const toast = document.getElementById('toast');
+toast.textContent = isDark ? 'Dark mode enabled' : 'Light mode enabled';
+toast.classList.remove('hidden');
+toast.classList.add('opacity-100');
+setTimeout(function() {
+toast.classList.remove('opacity-100');
+toast.classList.add('opacity-0');
+setTimeout(function() {
+toast.classList.add('hidden');
+}, 300);
+}, 2000);
+}
+function toggleTheme() {
+const isDark = !localStorage.getItem('darkMode') || localStorage.getItem('darkMode') === 'false' ? true : false;
+localStorage.setItem('darkMode', isDark);
+setTheme(isDark);
+showThemeToast(isDark);
+}
+darkModeToggle.addEventListener('change', toggleTheme);
+themeToggle.addEventListener('click', toggleTheme);
+const savedTheme = localStorage.getItem('darkMode') === 'true';
+setTheme(savedTheme);
+});
+</script>
+<script id="drag-and-drop-script">
+document.addEventListener('DOMContentLoaded', function() {
+const taskCards = document.querySelectorAll('.task-card');
+let draggedItem = null;
+taskCards.forEach(card => {
+const dragHandle = card.querySelector('.ri-drag-move-line').parentNode;
+dragHandle.addEventListener('mousedown', function() {
+draggedItem = card;
+card.classList.add('dragging');
+document.addEventListener('mousemove', onMouseMove);
+document.addEventListener('mouseup', onMouseUp);
+});
+function onMouseMove(e) {
+if (!draggedItem) return;
+const taskList = document.querySelector('.task-list');
+const taskCards = Array.from(taskList.querySelectorAll('.task-card:not(.dragging)'));
+// Find the card we're hovering over
+const cardBelow = taskCards.find(card => {
+const rect = card.getBoundingClientRect();
+return e.clientY < rect.bottom && e.clientY > rect.top;
+});
+if (cardBelow) {
+taskList.insertBefore(draggedItem, cardBelow);
+} else {
+taskList.appendChild(draggedItem);
+}
+}
+function onMouseUp() {
+if (draggedItem) {
+draggedItem.classList.remove('dragging');
+draggedItem = null;
+document.removeEventListener('mousemove', onMouseMove);
+document.removeEventListener('mouseup', onMouseUp);
+const toast = document.getElementById('toast');
+toast.textContent = 'Task order updated';
+toast.classList.remove('hidden');
+toast.classList.add('opacity-100');
+setTimeout(function() {
+toast.classList.remove('opacity-100');
+toast.classList.add('opacity-0');
+setTimeout(function() {
+toast.classList.add('hidden');
+}, 300);
+}, 2000);
+}
+}
+});
+});
+</script>
+<script id="notifications-script">
+document.addEventListener('DOMContentLoaded', function() {
+const pushNotificationsToggle = document.getElementById('push-notifications-toggle');
+const emailNotificationsToggle = document.getElementById('email-notifications-toggle');
+const soundToggle = document.getElementById('sound-toggle');
+const emailNotificationSettings = document.getElementById('email-notification-settings');
+const soundSettings = document.getElementById('sound-settings');
+function showToast(message) {
+const toast = document.getElementById('toast');
+toast.textContent = message;
+toast.classList.remove('hidden');
+toast.classList.add('opacity-100');
+setTimeout(() => {
+toast.classList.remove('opacity-100');
+toast.classList.add('opacity-0');
+setTimeout(() => toast.classList.add('hidden'), 300);
+}, 2000);
+}
+function saveNotificationSettings() {
+const settings = {
+pushNotifications: {
+enabled: pushNotificationsToggle.checked,
+dueDate: document.getElementById('notify-due-date').checked,
+taskUpdates: document.getElementById('notify-task-updates').checked,
+comments: document.getElementById('notify-comments').checked,
+reminderTime: document.getElementById('reminder-time').value
+},
+emailNotifications: {
+enabled: emailNotificationsToggle.checked,
+dailySummary: document.getElementById('email-daily-summary').checked,
+weeklyReport: document.getElementById('email-weekly-report').checked,
+importantUpdates: document.getElementById('email-important-updates').checked,
+summaryTime: document.getElementById('summary-time').value
+},
+sound: {
+enabled: soundToggle.checked,
+notificationSound: document.getElementById('enable-sound').checked,
+vibration: document.getElementById('enable-vibration').checked,
+soundType: document.getElementById('sound-type').value
+}
+};
+localStorage.setItem('notificationSettings', JSON.stringify(settings));
+}
+function loadNotificationSettings() {
+const settings = JSON.parse(localStorage.getItem('notificationSettings'));
+if (settings) {
+pushNotificationsToggle.checked = settings.pushNotifications.enabled;
+document.getElementById('notify-due-date').checked = settings.pushNotifications.dueDate;
+document.getElementById('notify-task-updates').checked = settings.pushNotifications.taskUpdates;
+document.getElementById('notify-comments').checked = settings.pushNotifications.comments;
+document.getElementById('reminder-time').value = settings.pushNotifications.reminderTime;
+emailNotificationsToggle.checked = settings.emailNotifications.enabled;
+document.getElementById('email-daily-summary').checked = settings.emailNotifications.dailySummary;
+document.getElementById('email-weekly-report').checked = settings.emailNotifications.weeklyReport;
+document.getElementById('email-important-updates').checked = settings.emailNotifications.importantUpdates;
+document.getElementById('summary-time').value = settings.emailNotifications.summaryTime;
+soundToggle.checked = settings.sound.enabled;
+document.getElementById('enable-sound').checked = settings.sound.notificationSound;
+document.getElementById('enable-vibration').checked = settings.sound.vibration;
+document.getElementById('sound-type').value = settings.sound.soundType;
+emailNotificationSettings.classList.toggle('hidden', !settings.emailNotifications.enabled);
+}
+}
+pushNotificationsToggle.addEventListener('change', () => {
+showToast(pushNotificationsToggle.checked ? 'Push notifications enabled' : 'Push notifications disabled');
+saveNotificationSettings();
+});
+emailNotificationsToggle.addEventListener('change', () => {
+emailNotificationSettings.classList.toggle('hidden', !emailNotificationsToggle.checked);
+showToast(emailNotificationsToggle.checked ? 'Email notifications enabled' : 'Email notifications disabled');
+saveNotificationSettings();
+});
+soundToggle.addEventListener('change', () => {
+showToast(soundToggle.checked ? 'Sound notifications enabled' : 'Sound notifications disabled');
+saveNotificationSettings();
+});
+document.querySelectorAll('#push-notification-settings input, #email-notification-settings input, #sound-settings input, select').forEach(input => {
+input.addEventListener('change', saveNotificationSettings);
+});
+loadNotificationSettings();
+});
+</script>
+<script id="data-management-script">
+document.addEventListener('DOMContentLoaded', function() {
+const backupDataBtn = document.getElementById('backup-data-btn');
+const restoreDataBtn = document.getElementById('restore-data-btn');
+const clearDataBtn = document.getElementById('clear-data-btn');
+const autoBackupToggle = document.getElementById('auto-backup-toggle');
+const confirmModal = document.getElementById('confirm-modal');
+const confirmTitle = document.getElementById('confirm-title');
+const confirmMessage = document.getElementById('confirm-message');
+const confirmCancel = document.getElementById('confirm-cancel');
+const confirmOk = document.getElementById('confirm-ok');
+function showToast(message) {
+const toast = document.getElementById('toast');
+toast.textContent = message;
+toast.classList.remove('hidden');
+toast.classList.add('opacity-100');
+setTimeout(() => {
+toast.classList.remove('opacity-100');
+toast.classList.add('opacity-0');
+setTimeout(() => toast.classList.add('hidden'), 300);
+}, 2000);
+}
+function showConfirmModal(title, message, onConfirm) {
+confirmTitle.textContent = title;
+confirmMessage.textContent = message;
+confirmModal.classList.remove('hidden');
+confirmCancel.onclick = () => {
+confirmModal.classList.add('hidden');
+};
+confirmOk.onclick = () => {
+onConfirm();
+confirmModal.classList.add('hidden');
+};
+}
+backupDataBtn.addEventListener('click', () => {
+const data = {
+tasks: localStorage.getItem('tasks'),
+settings: localStorage.getItem('settings'),
+categories: localStorage.getItem('categories'),
+timestamp: new Date().toISOString()
+};
+const dataStr = JSON.stringify(data);
+const dataBlob = new Blob([dataStr], { type: 'application/json' });
+const url = URL.createObjectURL(dataBlob);
+const link = document.createElement('a');
+link.href = url;
+link.download = `task_manager_backup_${new Date().toISOString().slice(0,10)}.json`;
+document.body.appendChild(link);
+link.click();
+document.body.removeChild(link);
+URL.revokeObjectURL(url);
+showToast('Backup created successfully');
+});
+restoreDataBtn.addEventListener('click', () => {
+const input = document.createElement('input');
+input.type = 'file';
+input.accept = '.json';
+input.onchange = (e) => {
+const file = e.target.files[0];
+const reader = new FileReader();
+reader.onload = (e) => {
+try {
+const data = JSON.parse(e.target.result);
+if (data.tasks) localStorage.setItem('tasks', data.tasks);
+if (data.settings) localStorage.setItem('settings', data.settings);
+if (data.categories) localStorage.setItem('categories', data.categories);
+showToast('Data restored successfully');
+} catch (err) {
+showToast('Invalid backup file');
+}
+};
+reader.readAsText(file);
+};
+input.click();
+});
+clearDataBtn.addEventListener('click', () => {
+showConfirmModal(
+'Clear All Data',
+'This will permanently delete all your tasks and settings. This action cannot be undone.',
+() => {
+localStorage.clear();
+showToast('All data cleared successfully');
+}
+);
+});
+autoBackupToggle.addEventListener('change', (e) => {
+if (e.target.checked) {
+localStorage.setItem('autoBackup', 'true');
+showToast('Auto backup enabled');
+} else {
+localStorage.setItem('autoBackup', 'false');
+showToast('Auto backup disabled');
+}
+});
+const autoBackupEnabled = localStorage.getItem('autoBackup') === 'true';
+autoBackupToggle.checked = autoBackupEnabled;
+});
+</script>
+<script id="category-filter-script">
+document.addEventListener('DOMContentLoaded', function() {
+const categoryFilter = document.getElementById('category-filter');
+const categoryChips = categoryFilter.querySelectorAll('.category-chip');
+const taskCards = document.querySelectorAll('.task-card');
+function filterTasks(category) {
+taskCards.forEach(card => {
+const taskCategory = card.querySelector('span.rounded-full').textContent.toLowerCase();
+if (category === 'all' || taskCategory === category) {
+card.style.display = '';
+card.classList.remove('animate-fade-out');
+card.classList.add('animate-fade-in');
+} else {
+card.classList.remove('animate-fade-in');
+card.classList.add('animate-fade-out');
+setTimeout(() => {
+card.style.display = 'none';
+}, 200);
+}
+});
+}
+function updateCategoryChips(selectedChip) {
+categoryChips.forEach(chip => {
+const category = chip.getAttribute('data-category');
+const isSelected = chip === selectedChip;
+if (isSelected) {
+chip.classList.remove(
+'bg-blue-100', 'text-blue-700',
+'bg-green-100', 'text-green-700',
+'bg-orange-100', 'text-orange-700',
+'bg-red-100', 'text-red-700',
+'bg-gray-100', 'text-gray-700'
+);
+chip.classList.add('bg-primary', 'text-white');
+} else {
+chip.classList.remove('bg-primary', 'text-white');
+switch (category) {
+case 'work':
+chip.classList.add('bg-blue-100', 'text-blue-700');
+break;
+case 'personal':
+chip.classList.add('bg-green-100', 'text-green-700');
+break;
+case 'shopping':
+chip.classList.add('bg-orange-100', 'text-orange-700');
+break;
+case 'health':
+chip.classList.add('bg-red-100', 'text-red-700');
+break;
+case 'others':
+chip.classList.add('bg-gray-100', 'text-gray-700');
+break;
+}
+}
+});
+}
+categoryChips.forEach(chip => {
+chip.addEventListener('click', function() {
+const category = this.getAttribute('data-category');
+updateCategoryChips(this);
+filterTasks(category);
+const toast = document.getElementById('toast');
+toast.textContent = `Filtered by ${category === 'all' ? 'all categories' : category}`;
+toast.classList.remove('hidden');
+toast.classList.add('opacity-100');
+setTimeout(() => {
+toast.classList.remove('opacity-100');
+toast.classList.add('opacity-0');
+setTimeout(() => toast.classList.add('hidden'), 300);
+}, 2000);
+});
+});
+});
+</script>
+<script id="task-storage-script">
+document.addEventListener('DOMContentLoaded', function() {
+const deleteTaskBtn = document.getElementById('delete-task-btn');
+const confirmModal = document.getElementById('confirm-modal');
+const confirmTitle = document.getElementById('confirm-title');
+const confirmMessage = document.getElementById('confirm-message');
+const confirmCancel = document.getElementById('confirm-cancel');
+const confirmOk = document.getElementById('confirm-ok');
+deleteTaskBtn.addEventListener('click', function() {
+const taskCard = document.querySelector('.task-card');
+if (taskCard) {
+confirmTitle.textContent = 'Confirm Delete';
+confirmMessage.textContent = 'Are you sure you want to delete this task?';
+confirmOk.textContent = 'Delete';
+confirmOk.classList.add('bg-red-600');
+confirmModal.classList.remove('hidden');
+taskOptionsModal.classList.add('hidden');
+confirmCancel.onclick = () => {
+confirmModal.classList.add('hidden');
+confirmOk.classList.remove('bg-red-600');
+};
+confirmOk.onclick = () => {
+const taskId = parseInt(taskCard.getAttribute('data-task-id'));
+const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+const updatedTasks = tasks.filter(t => t.id !== taskId);
+localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+taskCard.classList.add('animate-fade-out');
+setTimeout(() => {
+taskCard.remove();
+}, 200);
+confirmModal.classList.add('hidden');
+confirmOk.classList.remove('bg-red-600');
+const toast = document.getElementById('toast');
+toast.textContent = 'Task deleted successfully';
+toast.classList.remove('hidden');
+toast.classList.add('opacity-100');
+setTimeout(() => {
+toast.classList.remove('opacity-100');
+toast.classList.add('opacity-0');
+setTimeout(() => toast.classList.add('hidden'), 300);
+}, 2000);
+};
+}
+});
+const reminderModal = document.getElementById('reminder-modal');
+const setReminderBtn = document.getElementById('set-reminder-btn');
+const closeReminderModal = document.getElementById('close-reminder-modal');
+const cancelReminder = document.getElementById('cancel-reminder');
+const reminderForm = document.getElementById('reminder-form');
+function showReminderModal() {
+reminderModal.classList.remove('hidden');
+taskOptionsModal.classList.add('hidden');
+const now = new Date();
+now.setMinutes(now.getMinutes() + 5);
+document.getElementById('reminder-datetime').value = now.toISOString().slice(0, 16);
+}
+function hideReminderModal() {
+reminderModal.classList.add('hidden');
+}
+setReminderBtn.addEventListener('click', showReminderModal);
+closeReminderModal.addEventListener('click', hideReminderModal);
+cancelReminder.addEventListener('click', hideReminderModal);
+reminderForm.addEventListener('submit', function(e) {
+e.preventDefault();
+const datetime = document.getElementById('reminder-datetime').value;
+const pushEnabled = document.getElementById('reminder-push').checked;
+const emailEnabled = document.getElementById('reminder-email').checked;
+const frequency = document.getElementById('reminder-frequency').value;
+const reminder = {
+datetime,
+notifications: {
+push: pushEnabled,
+email: emailEnabled
+},
+frequency,
+taskId: document.querySelector('.task-card').getAttribute('data-task-id')
+};
+const reminders = JSON.parse(localStorage.getItem('reminders') || '[]');
+reminders.push(reminder);
+localStorage.setItem('reminders', JSON.stringify(reminders));
+hideReminderModal();
+const toast = document.getElementById('toast');
+toast.textContent = 'Reminder set successfully!';
+toast.classList.remove('hidden');
+toast.classList.add('opacity-100');
+setTimeout(() => {
+toast.classList.remove('opacity-100');
+toast.classList.add('opacity-0');
+setTimeout(() => toast.classList.add('hidden'), 300);
+}, 2000);
+});
+const editTaskBtn = document.getElementById('edit-task-btn');
+const markCompleteBtn = document.getElementById('mark-complete-btn');
+const taskOptionsModal = document.getElementById('task-options-modal');
+function markTaskAsComplete(taskCard) {
+// Update visual elements
+const titleElement = taskCard.querySelector('h3');
+const descriptionElement = taskCard.querySelector('p');
+const checkbox = taskCard.querySelector('input[type="checkbox"]');
+const priorityLabel = taskCard.querySelector('.rounded');
+titleElement.classList.add('line-through', 'text-gray-500');
+descriptionElement.classList.add('line-through', 'text-gray-400');
+checkbox.checked = true;
+priorityLabel.className = 'bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded';
+priorityLabel.textContent = 'Completed';
+// Show toast notification
+const toast = document.getElementById('toast');
+toast.textContent = 'Task marked as complete';
+toast.classList.remove('hidden');
+toast.classList.add('opacity-100');
+setTimeout(() => {
+toast.classList.remove('opacity-100');
+toast.classList.add('opacity-0');
+setTimeout(() => toast.classList.add('hidden'), 300);
+}, 2000);
+// Close the options modal
+taskOptionsModal.classList.add('hidden');
+// Update task in localStorage
+const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+const taskId = parseInt(taskCard.getAttribute('data-task-id'));
+const taskIndex = tasks.findIndex(t => t.id === taskId);
+if (taskIndex !== -1) {
+tasks[taskIndex].completed = true;
+localStorage.setItem('tasks', JSON.stringify(tasks));
+}
+}
+if (markCompleteBtn) {
+markCompleteBtn.addEventListener('click', function() {
+const taskCard = document.querySelector('.task-card');
+if (taskCard) {
+markTaskAsComplete(taskCard);
+}
+});
+}
+const editTaskModal = document.getElementById('edit-task-modal');
+const closeEditModal = document.getElementById('close-edit-modal');
+const cancelEditTask = document.getElementById('cancel-edit-task');
+const editTaskForm = document.getElementById('edit-task-form');
+function populateEditForm(taskId) {
+const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+const task = tasks.find(t => t.id === taskId);
+if (task) {
+document.getElementById('edit-task-id').value = task.id;
+document.getElementById('edit-task-title').value = task.title;
+document.getElementById('edit-task-description').value = task.description;
+document.getElementById('edit-task-category').value = task.category;
+document.getElementById('edit-task-due-date').value = task.dueDate;
+document.getElementById('edit-task-priority').value = task.priority;
+}
+}
+editTaskBtn.addEventListener('click', function() {
+const taskCard = document.querySelector('.task-card');
+if (taskCard) {
+const taskId = parseInt(taskCard.getAttribute('data-task-id'));
+populateEditForm(taskId);
+editTaskModal.classList.remove('hidden');
+taskOptionsModal.classList.add('hidden');
+}
+});
+closeEditModal.addEventListener('click', function() {
+editTaskModal.classList.add('hidden');
+});
+cancelEditTask.addEventListener('click', function() {
+editTaskModal.classList.add('hidden');
+});
+editTaskForm.addEventListener('submit', function(e) {
+e.preventDefault();
+const taskId = parseInt(document.getElementById('edit-task-id').value);
+const title = document.getElementById('edit-task-title').value;
+const description = document.getElementById('edit-task-description').value;
+const category = document.getElementById('edit-task-category').value;
+const dueDate = document.getElementById('edit-task-due-date').value;
+const priority = document.getElementById('edit-task-priority').value;
+if (!title) {
+const toast = document.getElementById('toast');
+toast.textContent = 'Please enter a task title';
+toast.classList.remove('hidden');
+toast.classList.add('opacity-100');
+setTimeout(function() {
+toast.classList.remove('opacity-100');
+toast.classList.add('opacity-0');
+setTimeout(function() {
+toast.classList.add('hidden');
+}, 300);
+}, 2000);
+return;
+}
+const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+const taskIndex = tasks.findIndex(t => t.id === taskId);
+if (taskIndex !== -1) {
+tasks[taskIndex] = {
+...tasks[taskIndex],
+title,
+description,
+category,
+dueDate,
+priority
+};
+localStorage.setItem('tasks', JSON.stringify(tasks));
+editTaskModal.classList.add('hidden');
+const toast = document.getElementById('toast');
+toast.textContent = 'Task updated successfully!';
+toast.classList.remove('hidden');
+toast.classList.add('opacity-100');
+setTimeout(function() {
+toast.classList.remove('opacity-100');
+toast.classList.add('opacity-0');
+setTimeout(function() {
+toast.classList.add('hidden');
+}, 300);
+}, 2000);
+}
+});
+// Initialize local storage with sample tasks if empty
+if (!localStorage.getItem('tasks')) {
+const sampleTasks = [
+{
+id: 1,
+title: 'Prepare quarterly report',
+description: 'Gather all sales data and create presentation for the team meeting',
+category: 'work',
+dueDate: '2025-06-06',
+priority: 'high',
+completed: false
+},
+{
+id: 2,
+title: 'Schedule dentist appointment',
+description: 'Call Dr. Anderson\'s office to book annual checkup',
+category: 'personal',
+dueDate: '2025-06-08',
+priority: 'medium',
+completed: false
+},
+{
+id: 3,
+title: 'Buy groceries',
+description: 'Milk, eggs, bread, fruits, and vegetables',
+category: 'shopping',
+dueDate: '2025-06-05',
+priority: 'low',
+completed: true
+},
+{
+id: 4,
+title: 'Morning workout routine',
+description: '30 minutes cardio and 15 minutes strength training',
+category: 'health',
+dueDate: '2025-06-10',
+priority: 'high',
+completed: false
+},
+{
+id: 5,
+title: 'Client meeting with Acme Corp',
+description: 'Discuss project timeline and deliverables',
+category: 'work',
+dueDate: '2025-06-15',
+priority: 'medium',
+completed: false,
+progress: 75
+}
+];
+localStorage.setItem('tasks', JSON.stringify(sampleTasks));
+}
+// Handle form submission to add new task
+document.getElementById('add-task-form').addEventListener('submit', function(e) {
+e.preventDefault();
+const title = document.getElementById('task-title').value;
+const description = document.getElementById('task-description').value;
+const category = document.getElementById('task-category').value;
+const dueDate = document.getElementById('task-due-date').value;
+const priority = document.getElementById('task-priority').value;
+if (!title) {
+const toast = document.getElementById('toast');
+toast.textContent = 'Please enter a task title';
+toast.classList.remove('hidden');
+toast.classList.add('opacity-100');
+setTimeout(function() {
+toast.classList.remove('opacity-100');
+toast.classList.add('opacity-0');
+setTimeout(function() {
+toast.classList.add('hidden');
+}, 300);
+}, 2000);
+return;
+}
+// Get existing tasks
+const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+// Create new task
+const newTask = {
+id: Date.now(),
+title,
+description,
+category,
+dueDate,
+priority,
+completed: false
+};
+// Add to tasks array
+tasks.push(newTask);
+// Save to localStorage
+localStorage.setItem('tasks', JSON.stringify(tasks));
+// Close modal and show success message
+document.getElementById('add-task-modal').classList.add('hidden');
+// Reset form
+document.getElementById('add-task-form').reset();
+// Show success toast
+const toast = document.getElementById('toast');
+toast.textContent = 'Task added successfully!';
+toast.classList.remove('hidden');
+toast.classList.add('opacity-100');
+setTimeout(function() {
+toast.classList.remove('opacity-100');
+toast.classList.add('opacity-0');
+setTimeout(function() {
+toast.classList.add('hidden');
+}, 300);
+}, 2000);
+// In a real app, we would refresh the task list here
+});
+});
+</script>
+</body>
+</html>
